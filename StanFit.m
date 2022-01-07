@@ -416,7 +416,7 @@ classdef StanFit < handle
                 command = fullfile(self.model.stan_home,'bin','diagnose ');
              end
          
-            command = [command strjoin( self.output_file,' ') ];
+            command = [command strjoin(self.output_file,' ') ];
             p = processManager('command',command,...
                                 'workingDir',self.model.working_dir,...
                                 'wrap',100,...
@@ -424,6 +424,7 @@ classdef StanFit < handle
                                 'printStderr',false,...
                                 'keepStdout',true,...
                                 'keepStderr',true);
+            p.block(0.05);               
              if p.exitValue == 0
                 out = p.stdout; 
              else 
