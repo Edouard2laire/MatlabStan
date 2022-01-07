@@ -210,7 +210,7 @@ classdef mcmc < handle
          
          fn = self.names;
          nPars = numel(fn);
-         if nPars < maxRows;
+         if nPars < maxRows
             maxRows = nPars;
          end
          figure;
@@ -226,17 +226,17 @@ classdef mcmc < handle
                %   plot(out(k).(fn{i})(:,j));
                %end
                if isvector(self.samples(1).(fn{i}))
-                  title(fn{i})
+                  title(fn{i},'Interpreter', 'none')
                elseif ismatrix(self.samples(1).(fn{i}))
-                  title([fn{i} num2str(j)])
+                  title([fn{i} num2str(j)],'Interpreter', 'none')
                end
-               count = count + 1;
                if count > maxRows
                   if i <= nPars
                      figure;
                      count = 1;
                   end
                end
+               count = count + 1;
             end
          end
       end

@@ -214,7 +214,9 @@ classdef StanModel < handle
          self.chains = p.Results.chains;
          
          if isempty(p.Results.sample_file)
-            self.params.output.file = [self.id '-output.csv'];
+            self.params.output.file = [self.id '.csv'];
+         else 
+            self.params.output.file = [p.Results.sample_file '.csv']; 
          end
 
          % pass remaining inputs to set()
@@ -270,8 +272,13 @@ classdef StanModel < handle
          if ~isempty(p.Results.id)
             self.id = p.Results.id;
          end
-         self.params.output.file = [self.id '-output.csv'];
-        
+         
+         if isempty(p.Results.sample_file) 
+            self.params.output.file = [self.id '.csv'];
+         else
+            self.params.output.file = p.Results.sample_file;
+         end
+         
          self.method = p.Results.method;
          self.chains = p.Results.chains;
          self.iter = p.Results.iter;
@@ -519,7 +526,7 @@ classdef StanModel < handle
          if ischar(id) && ~isempty(id)
             self.id = id;
             % Update the output filename
-            self.params.output.file = [self.id '-output.csv'];
+            self.params.output.file = [self.id '.csv'];
          else
             error('StanModel:chains:InputFormat','id must be a string.');
          end
@@ -743,7 +750,8 @@ classdef StanModel < handle
       
       function set.data(self,d)
          if isstruct(d) || isa(d,'containers.Map') || isa(d,'RData')
-            fname = fullfile(self.working_dir,[self.id '-data.R']);
+             [~,name,ext] = fileparts(self.sample_file);
+            fname = fullfile(self.working_dir,[name '-data.R']);
             if isa(d,'RData')
                rdump(d,fname);
             else
@@ -793,7 +801,7 @@ classdef StanModel < handle
          base_name = self.sample_file;
          for i = 1:self.chains
             % Set a filename for each chain
-            sample_file{i} = [name '-' num2str(i) ext];
+            sample_file{i} = [name '-output-' num2str(i) ext];
             self.sample_file = sample_file{i};
             
             % Give Stan a different id for each chain. This is used to advance 
@@ -802,7 +810,7 @@ classdef StanModel < handle
             
             % Chain specific inits
             if isstruct(self.init) || isa(self.init,'containers.Map')
-               self.params.init = fullfile(self.working_dir,[self.id '-init-' num2str(i) '.R']);
+               self.params.init = fullfile(self.working_dir,[name '-init-' num2str(i) '.R']);
             else
                self.params.init = self.init(i);
             end
@@ -899,9 +907,13 @@ classdef StanModel < handle
         else
             command = [self.model_binary_path, ' diagnose '];
         end
+
         command = [command 'data file=' self.params.data.file];
         
-        
+        [~,name,ext] = fileparts(self.sample_file);
+        command = [ command ' output file=' name '-diagnose.csv'];
+        self.params.output.diagnostic_file  = [name '-diagnose.csv'];       
+
         p = processManager('command',command,...
                     'workingDir',self.working_dir,...
                     'wrap',100,...
@@ -909,6 +921,9 @@ classdef StanModel < handle
                     'printStderr',false,...
                     'keepStdout',true,...
                     'keepStderr',true);
+                
+                
+         p.block(0.05);        
          if p.exitValue == 0
             out = p.stdout; 
          else 
@@ -999,8 +1014,11 @@ classdef StanModel < handle
          fprintf('%s\n',p.stdout{:});
       end
       
-      function compile(self,target,flags)
+      function compile(self,target,flags, force)
          % Compile CmdStan components and models
+         if nargin < 4 
+             force = 0;
+         end
          if nargin < 3
             flags = '';
          elseif iscell(flags) && all(cellfun(@(x) ischar(x),flags))
@@ -1014,6 +1032,11 @@ classdef StanModel < handle
          
          if nargin < 2
             target = 'model';
+         end
+         
+         if self.is_compiled() && ~force
+            disp('Model is up to date');
+            return;
          end
          
          switch lower(target)
